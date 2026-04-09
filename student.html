@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>EduVault - Student Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Kanit', sans-serif; }</style>
+</head>
+<body class="bg-slate-50 min-h-screen pb-20">
+    <nav class="bg-white shadow-sm border-b px-8 py-4 flex justify-between items-center sticky top-0 z-40">
+        <div class="flex items-center gap-2">
+            <div class="bg-blue-600 p-2 rounded-lg text-white font-bold">EV</div>
+            <h1 class="text-xl font-bold text-slate-800">EduVault <span class="text-blue-600">Student</span></h1>
+        </div>
+        <div class="flex items-center gap-4">
+            <p id="userEmail" class="text-sm font-medium text-slate-600"></p>
+            <button onclick="logout()" class="text-red-500 text-sm font-bold">ออกจากระบบ</button>
+        </div>
+    </nav>
+
+    <main class="max-w-6xl mx-auto p-6">
+        <h2 class="text-2xl font-bold text-slate-800 mb-6">รายวิชาที่เข้าเรียน</h2>
+        <div id="courseGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12"></div>
+
+        <h2 class="text-2xl font-bold text-slate-800 mb-4">ไฟล์ประกอบการสอน</h2>
+        <div class="bg-white rounded-2xl shadow-sm border overflow-hidden">
+            <table class="w-full text-left">
+                <tbody id="fileList" class="divide-y divide-slate-100"></tbody>
+            </table>
+        </div>
+    </main>
+
+    <script>
+        const API_URL = 'http://54.179.11.105:3000';
+        const token = localStorage.getItem('accessToken');
+        const email = localStorage.getItem('userEmail');
+
+        if (!token || localStorage.getItem('userRole') !== 'student') window.location.href = 'auth.html';
+        document.getElementById('userEmail').innerText = email;
+
+        async function loadContent() {
+            try {
+                // 1. โหลดคอร์สเรียน
+                const res = await fetch(`${API_URL}/courses`, { 
+                    headers: {'Authorization': `Bearer ${token}`} 
+                });
+                const courses = await res.json();
+                const courseGrid = document.getElementById('courseGrid');
+
+                if (!courses || courses.length === 0) {
+                    // แสดงข้อความเมื่อไม่มีคอร์ส
+                    courseGrid.className = "block text-center py-10 border-2 border-dashed border-slate-200 rounded-2xl";
+                    courseGrid.innerHTML = `
+                        <div class="text-slate-400">
+                            <p class="text-4xl mb-2">📚</p>
+                            <p class="font-medium">ยังไม่มีรายวิชาที่คุณเข้าถึงได้</p>
+                            <p class="text-xs">กรุณารออาจารย์ผู้สอนเพิ่มสิทธิ์การเข้าถึงให้คุณ</p>
+                        </div>`;
+                } else {
+                    courseGrid.className = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12";
+                    courseGrid.innerHTML = courses.map(c => `
+                        <div class="bg-white rounded-2xl shadow-sm border p-5 hover:shadow-md transition">
+                            <div class="h-20 bg-slate-700 rounded-xl mb-4 p-4 text-white">
+                                <h4 class="font-bold leading-tight">${c.course_name}</h4>
+                                <p class="text-[10px] opacity-70">${c.course_code || 'ไม่มีรหัสวิชา'}</p>
+                            </div>
+                            <p class="text-[10px] text-slate-400 italic">อาจารย์ผู้สอน: ${c.teacher_email}</p>
+                        </div>
+                    `).join('');
+                }
+
+                // 2. โหลดไฟล์ประกอบการสอน
+                const fileRes = await fetch(`${API_URL}/lectures`, { 
+                    headers: {'Authorization': `Bearer ${token}`} 
+                });
+                const files = await fileRes.json();
+                const fileList = document.getElementById('fileList');
+
+                if (!files || files.length === 0) {
+                    // แสดงข้อความเมื่อไม่มีไฟล์
+                    fileList.innerHTML = `
+                        <tr>
+                            <td class="px-6 py-10 text-center text-slate-400 italic text-sm">
+                                ยังไม่มีไฟล์ประกอบการสอนในขณะนี้
+                            </td>
+                        </tr>`;
+                } else {
+                    fileList.innerHTML = files.map(f => `
+                        <tr class="hover:bg-slate-50 transition">
+                            <td class="px-6 py-4">
+                                <div class="flex flex-col">
+                                    <span class="text-sm font-medium text-slate-700">${f.file_name}</span>
+                                    <span class="text-[10px] text-slate-400">จากวิชา: ${f.course_name || 'ทั่วไป'}</span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 text-right">
+                                <a href="${f.file_url}" target="_blank" 
+                                class="inline-block bg-blue-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-700 shadow-sm transition">
+                                DOWNLOAD
+                                </a>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (e) {
+                console.error(e);
+                document.getElementById('courseGrid').innerHTML = "เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์";
+            }
+        }
+
+        function logout() { localStorage.clear(); window.location.href = 'auth.html'; }
+        window.onload = loadContent;
+    </script>
+</body>
+</html>

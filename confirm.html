@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>EduVault - Confirm Email</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Kanit', sans-serif; }</style>
+</head>
+<body class="bg-slate-900 flex items-center justify-center h-screen px-4">
+    <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-sm text-center">
+        <h1 class="text-2xl font-bold mb-4 text-slate-800">ยืนยันตัวตน</h1>
+        <p class="text-slate-500 mb-8 text-sm">กรุณากรอกรหัสที่ได้รับในอีเมล</p>
+        
+        <div class="space-y-4">
+            <input type="email" id="confirmEmail" placeholder="อีเมล" class="w-full p-3 border rounded-lg bg-slate-50">
+            <input type="text" id="confirmCode" placeholder="รหัส 6 หลัก" class="w-full p-3 border rounded-lg text-center font-bold text-xl tracking-widest">
+            <button onclick="handleConfirm()" class="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition">ยืนยันบัญชี</button>
+        </div>
+
+        <div class="mt-6 border-t pt-4">
+            <a href="auth.html" class="text-sm text-slate-400 hover:text-blue-500">กลับหน้า Login</a>
+        </div>
+        <p id="message" class="mt-4 text-sm font-medium"></p>
+    </div>
+
+    <script>
+        const API_URL = 'http://54.179.11.105:3000'; // หรือ const API = ...
+
+        window.onload = () => {
+            const savedEmail = localStorage.getItem('userEmail');
+            if (savedEmail) document.getElementById('confirmEmail').value = savedEmail;
+        };
+
+        async function handleConfirm() {
+            const email = document.getElementById('confirmEmail').value;
+            const code = document.getElementById('confirmCode').value;
+            const msg = document.getElementById('message');
+
+            try {
+                const res = await fetch(`${API_URL}/confirm`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, code })
+                });
+                if (res.ok) {
+                    msg.className = "mt-4 text-green-500";
+                    msg.innerText = "ยืนยันสำเร็จ! กำลังไปหน้า Login...";
+                    setTimeout(() => window.location.href = 'auth.html', 2000);
+                } else {
+                    const data = await res.json();
+                    msg.className = "mt-4 text-red-500";
+                    msg.innerText = data.error || "รหัสไม่ถูกต้อง";
+                }
+            } catch (err) { msg.innerText = "เชื่อมต่อ Server ไม่ได้"; }
+        }
+    </script>
+</body>
+</html>
