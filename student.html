@@ -39,7 +39,7 @@
         if (!token || localStorage.getItem('userRole') !== 'student') window.location.href = 'auth.html';
         document.getElementById('userEmail').innerText = email;
 
-        async function loadContent() {
+        async function loadFiles() {
             try {
                 // 1. โหลดคอร์สเรียน
                 const res = await fetch(`${API_URL}/courses`, { 
@@ -59,13 +59,18 @@
                         </div>`;
                 } else {
                     courseGrid.className = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12";
+                    // แก้ไขบรรทัดที่ Render HTML ใน student.html
                     courseGrid.innerHTML = courses.map(c => `
-                        <div class="bg-white rounded-2xl shadow-sm border p-5 hover:shadow-md transition">
-                            <div class="h-20 bg-slate-700 rounded-xl mb-4 p-4 text-white">
+                        <div onclick="window.location.href='course-detail.html?id=${c.id}'" 
+                            class="bg-white rounded-2xl shadow-sm border p-5 hover:shadow-xl hover:border-blue-300 transition-all cursor-pointer group">
+                            <div class="h-24 bg-slate-700 group-hover:bg-blue-600 rounded-xl mb-4 p-4 text-white transition-colors flex flex-col justify-end">
                                 <h4 class="font-bold leading-tight">${c.course_name}</h4>
                                 <p class="text-[10px] opacity-70">${c.course_code || 'ไม่มีรหัสวิชา'}</p>
                             </div>
-                            <p class="text-[10px] text-slate-400 italic">อาจารย์ผู้สอน: ${c.teacher_email}</p>
+                            <div class="flex justify-between items-center">
+                                <p class="text-[10px] text-slate-400 italic">อาจารย์: ${c.teacher_email.split('@')[0]}</p>
+                                <span class="text-blue-600 text-[10px] font-bold">ดูไฟล์ทั้งหมด →</span>
+                            </div>
                         </div>
                     `).join('');
                 }
@@ -110,7 +115,7 @@
         }
 
         function logout() { localStorage.clear(); window.location.href = 'auth.html'; }
-        window.onload = loadContent;
+        window.onload = loadFiles;
     </script>
 </body>
 </html>

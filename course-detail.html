@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>EduVault - Course Details</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Kanit', sans-serif; }</style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+    <nav class="bg-white shadow-sm border-b px-8 py-4 flex justify-between items-center sticky top-0 z-40">
+        <div class="flex items-center gap-4">
+            <button onclick="history.back()" class="text-slate-400 hover:text-blue-600 transition">← ย้อนกลับ</button>
+            <h1 id="courseHeader" class="text-xl font-bold text-slate-800">กำลังโหลด...</h1>
+        </div>
+    </nav>
+
+    <main class="max-w-4xl mx-auto p-6">
+        <div class="bg-white rounded-3xl shadow-sm border p-8 mb-8">
+            <h2 class="text-3xl font-bold text-blue-600 mb-2" id="displayCourseName">รายวิชา</h2>
+            <p class="text-slate-500" id="displayCourseCode">รหัสวิชา</p>
+            <p class="mt-4 text-slate-600" id="displayCourseDesc"></p>
+        </div>
+
+        <h3 class="text-xl font-bold text-slate-800 mb-4">ไฟล์เอกสารในวิชานี้</h3>
+        <div class="bg-white rounded-2xl shadow-sm border overflow-hidden">
+            <table class="w-full text-left">
+                <thead class="bg-slate-50 border-b">
+                    <tr>
+                        <th class="px-6 py-3 text-xs font-bold text-slate-500 uppercase">ชื่อไฟล์</th>
+                        <th class="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase">จัดการ</th>
+                    </tr>
+                </thead>
+                <tbody id="fileList" class="divide-y divide-slate-100">
+                    </tbody>
+            </table>
+            <div id="emptyState" class="hidden py-20 text-center text-slate-400 italic">
+                ยังไม่มีไฟล์ในรายวิชานี้
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const API_URL = 'http://54.179.11.105:3000';
+        const token = localStorage.getItem('accessToken');
+        const urlParams = new URLSearchParams(window.location.search);
+        const courseId = urlParams.get('id');
+        const userEmail = localStorage.getItem('userEmail');
+
+        if (!token || !courseId) window.location.href = 'auth.html';
+
+        async function loadCourseDetails() {
+            try {
+                // 1. ดึงข้อมูลรายละเอียดวิชา (เอามาแสดงหัวข้อ)
+                const res = await fetch(`${API_URL}/courses`, { headers: {'Authorization': `Bearer ${token}`} });
+                const courses = await res.json();
+                const course = courses.find(c => c.id == courseId);
+                
+                if (course) {
+                    document.getElementById('courseHeader').innerText = course.course_name;
+                    document.getElementById('displayCourseName').innerText = course.course_name;
+                    document.getElementById('displayCourseCode').innerText = course.course_code || 'ไม่ระบุรหัส';
+                    document.getElementById('displayCourseDesc').innerText = course.description || 'ไม่มีคำอธิบายรายวิชา';
+                }
+
+                // 2. ดึงไฟล์ของวิชานี้ (กรองจาก API หลัก)
+                const role = localStorage.getItem('userRole');
+                const fileEndpoint = (role === 'teacher') ? `${API_URL}/files` : `${API_URL}/lectures`;
+                
+                const fileRes = await fetch(fileEndpoint, { headers: {'Authorization': `Bearer ${token}`} });
+                const allFiles = await fileRes.json();
+                
+                // กรองเอาเฉพาะไฟล์ที่ course_id ตรงกัน
+                const courseFiles = allFiles.filter(f => f.course_id == courseId);
+                const list = document.getElementById('fileList');
+
+                if (courseFiles.length === 0) {
+                    document.getElementById('emptyState').classList.remove('hidden');
+                } else {
+                    list.innerHTML = courseFiles.map(f => {
+                        const isMyFile = f.uploader_email === userEmail;
+                        return `
+                            <tr class="hover:bg-slate-50 transition">
+                                <td class="px-6 py-4 font-medium text-slate-700">
+                                    ${f.file_name}
+                                    <p class="text-[10px] text-slate-400">อัปโหลดโดย: ${f.uploader_email}</p>
+                                </td>
+                                <td class="px-6 py-4 text-right space-x-4">
+                                    <a href="${f.file_url}" target="_blank" 
+                                    class="inline-block bg-blue-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-700 transition">
+                                    DOWNLOAD
+                                    </a>
+                                    ${isMyFile ? `
+                                        <button onclick="deleteFileInDetail(${f.id})" class="text-red-500 text-xs font-bold hover:underline">ลบไฟล์</button>
+                                    ` : ''}
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function deleteFileInDetail(fileId) {
+            if (!confirm('ยืนยันการลบไฟล์?')) return;
+            const res = await fetch(`${API_URL}/files/${fileId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                alert('ลบแล้ว');
+                location.reload(); // รีโหลดหน้าเพื่ออัปเดตรายการ
+            }
+        }
+
+        window.onload = loadCourseDetails;
+    </script>
+</body>
+</html>

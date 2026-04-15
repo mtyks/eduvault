@@ -106,22 +106,25 @@
                     return;
                 }
 
+                // แก้ไขส่วนการสร้าง Card ใน teacher.html
                 courses.forEach(c => {
                     const isOwner = c.teacher_email === email;
                     const card = `
                         <div class="bg-white rounded-2xl shadow-sm border p-5 hover:shadow-md transition">
-                            <div class="h-24 ${isOwner ? 'bg-blue-600' : 'bg-slate-500'} rounded-xl mb-4 flex flex-col justify-end p-4 text-white">
+                            <div onclick="window.location.href='course-detail.html?id=${c.id}'" 
+                                class="h-24 ${isOwner ? 'bg-blue-600' : 'bg-slate-500'} rounded-xl mb-4 flex flex-col justify-end p-4 text-white cursor-pointer hover:opacity-90 transition">
                                 <h4 class="font-bold leading-tight">${c.course_name}</h4>
                                 <p class="text-[10px] opacity-80">${c.course_code || 'No Code'}</p>
                             </div>
+                            
                             <p class="text-[10px] text-slate-400 mb-4 italic">โดย: ${c.teacher_email}</p>
                             ${isOwner ? `
                                 <div class="grid grid-cols-3 gap-2">
-                                    <button onclick="triggerUpload(${c.id})" class="bg-blue-50 text-blue-600 py-2 rounded-lg text-[10px] font-bold hover:bg-blue-600 hover:text-white transition">ไฟล์</button>
+                                    <button onclick="triggerUpload(${c.id})" class="bg-blue-50 text-blue-600 py-2 rounded-lg text-[10px] font-bold hover:bg-blue-600 hover:text-white transition">อัปโหลด</button>
                                     <button onclick="openShareModal(${c.id})" class="bg-green-50 text-green-600 py-2 rounded-lg text-[10px] font-bold hover:bg-green-600 hover:text-white transition">สิทธิ์</button>
                                     <button onclick="deleteCourse(${c.id})" class="bg-red-50 text-red-600 py-2 rounded-lg text-[10px] font-bold hover:bg-red-600 hover:text-white transition">ลบ</button>
                                 </div>
-                            ` : `<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-1 rounded">อ่านอย่างเดียว</span>`}
+                            ` : `<button onclick="window.location.href='course-detail.html?id=${c.id}'" class="w-full bg-slate-100 text-slate-500 py-2 rounded-lg text-[10px] font-bold">เข้าดูไฟล์</button>`}
                         </div>
                     `;
                     if (isOwner) myDiv.innerHTML += card;
@@ -197,16 +200,55 @@
 
         // --- จัดการไฟล์ ---
         async function loadFiles() {
-            const res = await fetch(`${API_URL}/files`, { headers: { 'Authorization': `Bearer ${token}` } });
-            const data = await res.json();
-            document.getElementById('fileList').innerHTML = data.map(f => `
-                <tr class="hover:bg-slate-50">
-                    <td class="px-6 py-4 text-sm font-medium text-slate-700">${f.file_name}</td>
-                    <td class="px-6 py-4 text-right text-xs font-bold text-blue-600">
-                        <a href="${f.file_url}" target="_blank">DOWNLOAD</a>
-                    </td>
-                </tr>
-            `).join('');
+            try {
+                const res = await fetch(`${API_URL}/files`, { headers: { 'Authorization': `Bearer ${token}` } });
+                const data = await res.json();
+                const fileList = document.getElementById('fileList');
+
+                fileList.innerHTML = data.map(f => {
+                    const isMyFile = f.uploader_email === email; // เช็คว่าเป็นไฟล์ของเราไหม
+                    return `
+                        <tr class="hover:bg-slate-50 transition">
+                            <td class="px-6 py-4">
+                                <div class="flex flex-col">
+                                    <span class="text-sm font-medium text-slate-700">${f.file_name}</span>
+                                    <span class="text-[10px] text-slate-400">วิชา: ${f.course_name || 'ทั่วไป'} | โดย: ${f.uploader_email}</span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 text-right space-x-3">
+                                <a href="${f.file_url}" target="_blank" class="text-xs font-bold text-blue-600 hover:underline">DOWNLOAD</a>
+                                
+                                ${isMyFile ? `
+                                    <button onclick="deleteFile(${f.id})" class="text-xs font-bold text-red-500 hover:text-red-700">ลบ</button>
+                                ` : `
+                                    <span class="text-[10px] text-slate-300 italic cursor-not-allowed">Read Only</span>
+                                `}
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (e) { console.error(e); }
+        }
+
+        async function deleteFile(fileId) {
+            if (!confirm('คุณต้องการลบไฟล์นี้ใช่หรือไม่?')) return;
+            
+            try {
+                const res = await fetch(`${API_URL}/files/${fileId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (res.ok) {
+                    alert('ลบไฟล์สำเร็จ');
+                    loadFiles(); // โหลดรายการไฟล์ใหม่
+                } else {
+                    const err = await res.json();
+                    alert(err.error || 'เกิดข้อผิดพลาดในการลบ');
+                }
+            } catch (e) {
+                alert('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้');
+            }
         }
 
         const fileInput = document.createElement('input');
